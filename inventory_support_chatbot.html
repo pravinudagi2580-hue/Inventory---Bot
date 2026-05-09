@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Inventory Support Bot</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .chat-wrapper {
+      width: 100%;
+      max-width: 700px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      display: flex;
+      flex-direction: column;
+      height: 90vh;
+      max-height: 700px;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .header {
+      background: #1a2744;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: #3b5bdb;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .bot-name { color: #fff; font-weight: 600; font-size: 15px; }
+    .bot-status { color: #94a3b8; font-size: 12px; display: flex; align-items: center; gap: 5px; margin-top: 2px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
+
+    #endBtn {
+      display: none;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.25);
+      color: #fff;
+      padding: 6px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    #endBtn:hover { background: rgba(255,255,255,0.2); }
+
+    /* Messages */
+    #msgs {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      background: #f7f9fc;
+    }
+    #msgs::-webkit-scrollbar { width: 4px; }
+    #msgs::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+    .msg-row { display: flex; gap: 8px; align-items: flex-end; }
+    .msg-row.user { justify-content: flex-end; }
+
+    .bot-av {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: #1a2744;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+
+    .bubble {
+      max-width: 76%;
+      padding: 10px 14px;
+      font-size: 14px;
+      line-height: 1.65;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .bubble.bot {
+      background: #fff;
+      color: #1e293b;
+      border-radius: 16px 16px 16px 4px;
+      border: 1px solid #e2e8f0;
+    }
+    .bubble.user {
+      background: #1a2744;
+      color: #fff;
+      border-radius: 16px 16px 4px 16px;
+    }
+
+    /* Typing dots */
+    .typing { display: flex; gap: 5px; align-items: center; padding: 12px 16px; }
+    .typing span {
+      width: 7px; height: 7px; border-radius: 50%; background: #94a3b8;
+      animation: bounce 1.2s ease-in-out infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.2s; }
+    .typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); }
+      40% { transform: translateY(-6px); }
+    }
+
+    /* Quick buttons */
+    #quickWrap {
+      padding: 10px 16px;
+      background: #f7f9fc;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      flex-shrink: 0;
+    }
+    .qbtn {
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      color: #475569;
+      padding: 5px 13px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: 'Segoe UI', sans-serif;
+      transition: all 0.15s;
+    }
+    .qbtn:hover { border-color: #1a2744; color: #1a2744; background: #f0f4ff; }
+
+    /* Input area */
+    #inputArea {
+      padding: 12px 16px;
+      background: #fff;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    #inp {
+      flex: 1;
+      padding: 10px 16px;
+      border-radius: 24px;
+      border: 1px solid #cbd5e1;
+      font-size: 14px;
+      font-family: 'Segoe UI', sans-serif;
+      outline: none;
+      color: #1e293b;
+      background: #f7f9fc;
+    }
+    #inp:focus { border-color: #3b5bdb; background: #fff; }
+
+    #sendBtn {
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      background: #1a2744;
+      border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    #sendBtn:hover { background: #3b5bdb; }
+    #sendBtn:disabled { background: #cbd5e1; cursor: not-allowed; }
+
+    /* Feedback panel */
+    .feedback-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 22px;
+      margin: 4px 0;
+    }
+    .feedback-card h3 { font-size: 15px; color: #1e293b; margin-bottom: 4px; }
+    .feedback-card p { font-size: 13px; color: #64748b; margin-bottom: 16px; }
+    .stars { display: flex; gap: 6px; margin-bottom: 16px; }
+    .star-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 30px; opacity: 0.3; padding: 2px 4px;
+      transition: opacity 0.15s; line-height: 1;
+    }
+    .star-btn.active { opacity: 1; }
+    #fbText {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      font-size: 13px;
+      font-family: 'Segoe UI', sans-serif;
+      resize: none;
+      margin-bottom: 12px;
+      color: #1e293b;
+      background: #f7f9fc;
+    }
+    #fbText:focus { outline: none; border-color: #3b5bdb; background: #fff; }
+    #fbSubmit {
+      width: 100%;
+      padding: 10px;
+      background: #cbd5e1;
+      color: #94a3b8;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: not-allowed;
+      font-family: 'Segoe UI', sans-serif;
+      transition: all 0.2s;
+    }
+    #fbSubmit.ready {
+      background: #1a2744;
+      color: #fff;
+      cursor: pointer;
+    }
+    #fbSubmit.ready:hover { background: #3b5bdb; }
+
+    .success-box { text-align: center; padding: 10px 0; }
+    .success-box .big { font-size: 40px; margin-bottom: 10px; }
+    .success-box h3 { font-size: 16px; color: #1e293b; margin-bottom: 6px; }
+    .success-box p { font-size: 13px; color: #64748b; }
+
+    /* API key prompt */
+    .key-prompt {
+      background: #fff8ed;
+      border: 1px solid #fed7aa;
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 13px;
+      color: #92400e;
+      margin-bottom: 10px;
+      line-height: 1.6;
+    }
+    .key-prompt b { color: #78350f; }
+    #apiKeyRow { display: flex; gap: 8px; margin-top: 10px; }
+    #apiKeyInp {
+      flex: 1; padding: 8px 12px; border-radius: 8px;
+      border: 1px solid #fed7aa; font-size: 13px;
+      font-family: 'Segoe UI', sans-serif; color: #1e293b;
+      background: #fff;
+    }
+    #apiKeyInp:focus { outline: none; border-color: #f97316; }
+    #saveKeyBtn {
+      padding: 8px 16px; background: #1a2744; color: #fff;
+      border: none; border-radius: 8px; cursor: pointer;
+      font-size: 13px; font-family: 'Segoe UI', sans-serif;
+      white-space: nowrap;
+    }
+    #saveKeyBtn:hover { background: #3b5bdb; }
+  </style>
+</head>
+<body>
+
+<div class="chat-wrapper">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="avatar">🤖</div>
+      <div>
+        <div class="bot-name">Inventory Support Bot</div>
+        <div class="bot-status"><span class="dot"></span> Online · ERP & JPW Assistant</div>
+      </div>
+    </div>
+    <button id="endBtn" onclick="endChat()">End Chat</button>
+  </div>
+
+  <!-- Messages -->
+  <div id="msgs"></div>
+
+  <!-- Quick questions -->
+  <div id="quickWrap"></div>
+
+  <!-- Input -->
+  <div id="inputArea">
+    <input id="inp" type="text" placeholder="Type your question here..." />
+    <button id="sendBtn" onclick="handleSend()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <path d="M22 2L11 13" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+
+</div>
+
+<script>
+const KB = `You are a helpful ERP & JPW Inventory Support Assistant. Answer questions based on this knowledge base:
+
+Q1. Excess inventory in JPW: Check MB58, verify physical quantity, check issuance and consumption details. If consumption posted in ERP, stock should not be visible in JPW. Coordinate with JPW team to remove excess after ERP analysis.
+
+Q2. Excess inventory in ERP: Check MB58, verify physical quantity, check issuance (JPWP IO/MO) and 631 movement. Check ZTECH_REP for Consumption Flag "X". If still visible after flag, check Z92 movement. If consumption not posted, raise OC request.
+
+Q3. Device in ERP/JPW but not physically available: Open ZTECH_REP, enter RSN in Serial Number field. If no data, check IQ03 with Serial Number and Article. If last movement Z92: check document - manual Z92 contact Spares Team, automatic Z92 check document header text. If last movement 631: check document details - 631 only against IO/MO (JPWP) or Manual 631 for CHP WO.
+
+Q4. FIORI error "Serial number not assigned to technician": Check IQ03 with Serial Number and Article. Verify customer matches return order partner. Mismatch means WO completed by two partners. Check Z92 and Z91 movements (JP return orders). If adjustment not triggered, contact support team.
+
+Q5. Device returned to JP/JC but still visible in JPW: Check return order (JPWM order type). If not completed in ERP, complete via FIORI journey. If completed in ERP, check Consumption Flag. If flag is "X", check IQ03 for last device movement.
+
+Q6. Device submitted to JC/JP still visible in JPW: Check last movement via IQ03. If submitted without JPW journey (Manual 632), cancel the document. Devices and consumables should only be submitted through JPW return journey.
+
+Q7. HSPL1 unable to return ODU: HSPL1 not authorized to submit ODU through JPW journey. Do not create return request with Job Role N1 (ZPLT segment). If order already created, get it cancelled.
+
+Q8. Material not issued to partner: Check ZJIOCUSTMAP, enter Primary Partner ID (R68/R69). If partner not found, verify onboarding journey. If found, ensure Primary Flag is "X". If flag updated, check open orders in JPW and ERP (JPWP order type).
+
+Q9. Check material open orders in ERP: Open ZTECH_REP, enter Partner ID (R68/R69), set Order Status to "ASGN", enter Reference Number (JPSS), execute.
+
+Q10. Check work order and consumption: Open ZTECH_REP, enter WO or ORN, execute. Check WO status and Consumption Flag.
+
+Q11. Inventory reconciliation: Open MB51, enter Article/Site Code/From Date/To Date. Consumables: movement types 631,632,Z91. Devices: 631,632,241. Execute and download Issuance Report. Open ZTECH_REP, enter Partner ID, Order Status ASGN and COMP, execute and download. Subtract Consumption from Issuance. Remaining should be physically available with Partner/JFE/AFE/LCO.
+
+Q12. Movement types: 631=Issuance against JPW order (JPWP), 632=Return against JPW order (JPWM), Z91=Consumption posting for consumables/accessories, Z92=Reversal posting against return and adjustment orders.
+
+Answer questions even if phrased differently. Be concise, clear, and professional. Format answers with numbered steps when applicable. If not covered, suggest contacting support team.`;
+
+const QUICK = [
+  "Excess inventory in JPW",
+  "Device not physically found",
+  "FIORI return error",
+  "How to reconcile inventory",
+  "Material not issued to partner",
+  "Movement types explained"
+];
+
+let history = [];
+let msgCount = 0;
+let apiKey = localStorage.getItem('inv_bot_key') || '';
+let chosenRating = 0;
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "☀️ Good Morning";
+  if (h < 17) return "🌤️ Good Afternoon";
+  return "🌙 Good Evening";
+}
+
+function scrollBottom() {
+  const m = document.getElementById('msgs');
+  m.scrollTop = m.scrollHeight;
+}
+
+function addMsg(role, text) {
+  const msgs = document.getElementById('msgs');
+  const row = document.createElement('div');
+  row.className = 'msg-row ' + (role === 'user' ? 'user' : '');
+
+  if (role === 'assistant') {
+    const av = document.createElement('div');
+    av.className = 'bot-av';
+    av.textContent = '🤖';
+    row.appendChild(av);
+  }
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble ' + (role === 'user' ? 'user' : 'bot');
+  bubble.textContent = text;
+  row.appendChild(bubble);
+  msgs.appendChild(row);
+  scrollBottom();
+  msgCount++;
+  if (msgCount > 2) document.getElementById('endBtn').style.display = 'block';
+}
+
+function addTyping() {
+  const msgs = document.getElementById('msgs');
+  const row = document.createElement('div');
+  row.className = 'msg-row';
+  row.id = 'typingRow';
+  row.innerHTML = `<div class="bot-av">🤖</div><div class="bubble bot typing"><span></span><span></span><span></span></div>`;
+  msgs.appendChild(row);
+  scrollBottom();
+  return row;
+}
+
+function showApiKeyPrompt() {
+  const msgs = document.getElementById('msgs');
+  const card = document.createElement('div');
+  card.className = 'key-prompt';
+  card.innerHTML = `
+    <b>🔑 Anthropic API Key Required</b><br>
+    To use this chatbot, enter your Anthropic API key below.<br>
+    Get one free at <a href="https://console.anthropic.com" target="_blank" style="color:#1a2744;">console.anthropic.com</a>
+    <div id="apiKeyRow">
+      <input id="apiKeyInp" type="password" placeholder="sk-ant-..." />
+      <button id="saveKeyBtn" onclick="saveKey()">Save & Continue</button>
+    </div>
+  `;
+  msgs.appendChild(card);
+  scrollBottom();
+}
+
+function saveKey() {
+  const val = document.getElementById('apiKeyInp').value.trim();
+  if (!val.startsWith('sk-')) {
+    alert('Please enter a valid Anthropic API key starting with sk-ant-...');
+    return;
+  }
+  apiKey = val;
+  localStorage.setItem('inv_bot_key', val);
+  document.querySelector('.key-prompt').remove();
+  addMsg('assistant', 'API key saved! ✅ I am ready to help. What is your question?');
+}
+
+async function handleSend(preText) {
+  const inp = document.getElementById('inp');
+  const text = preText || inp.value.trim();
+  if (!text) return;
+  inp.value = '';
+
+  if (!apiKey) {
+    addMsg('user', text);
+    showApiKeyPrompt();
+    return;
+  }
+
+  document.getElementById('quickWrap').style.display = 'none';
+  addMsg('user', text);
+  history.push({ role: 'user', content: text });
+
+  const typing = addTyping();
+  document.getElementById('sendBtn').disabled = true;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: KB,
+        messages: history
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const reply = data.content?.map(b => b.text || '').join('') || 'Sorry, I could not process that.';
+    typing.remove();
+    addMsg('assistant', reply);
+    history.push({ role: 'assistant', content: reply });
+  } catch (e) {
+    typing.remove();
+    addMsg('assistant', '⚠️ Error: ' + (e.message || 'Something went wrong. Please check your API key.'));
+  }
+
+  document.getElementById('sendBtn').disabled = false;
+  document.getElementById('inp').focus();
+}
+
+function endChat() {
+  document.getElementById('inputArea').style.display = 'none';
+  document.getElementById('endBtn').style.display = 'none';
+  document.getElementById('quickWrap').style.display = 'none';
+
+  const msgs = document.getElementById('msgs');
+  const card = document.createElement('div');
+  card.className = 'feedback-card';
+  card.id = 'fbCard';
+  card.innerHTML = `
+    <h3>🙏 Thank you for using Inventory Support Bot!</h3>
+    <p>We'd love to hear your feedback on this session.</p>
+    <div style="font-weight:600;font-size:13px;color:#1e293b;margin-bottom:8px;">How would you rate this session?</div>
+    <div class="stars" id="stars">
+      ${[1,2,3,4,5].map(s => `<button class="star-btn" data-val="${s}" onclick="rateStar(${s})" onmouseover="hoverStar(${s})" onmouseout="hoverStar(0)">⭐</button>`).join('')}
+    </div>
+    <textarea id="fbText" rows="3" placeholder="Share your thoughts (optional)..."></textarea>
+    <button id="fbSubmit" onclick="submitFeedback()">Submit Feedback</button>
+  `;
+  msgs.appendChild(card);
+  scrollBottom();
+}
+
+function hoverStar(n) {
+  document.querySelectorAll('.star-btn').forEach((b, i) => {
+    b.classList.toggle('active', i < (n || chosenRating));
+  });
+}
+function rateStar(n) {
+  chosenRating = n;
+  hoverStar(n);
+  const btn = document.getElementById('fbSubmit');
+  if (btn) { btn.classList.add('ready'); }
+}
+function submitFeedback() {
+  if (!chosenRating) return;
+  const card = document.getElementById('fbCard');
+  card.innerHTML = `
+    <div class="success-box">
+      <div class="big">✅</div>
+      <h3>Feedback Received!</h3>
+      <p>Thank you! Your feedback helps us improve. Have a great day! 😊</p>
+    </div>
+  `;
+  scrollBottom();
+}
+
+// Init
+document.getElementById('inp').addEventListener('keydown', e => {
+  if (e.key === 'Enter') handleSend();
+});
+
+// Greeting
+const greet = getGreeting();
+addMsg('assistant', `${greet}! I'm your ERP & JPW Inventory Support Assistant.\n\nI can help with inventory issues, device tracking, movement types, order queries, and more. How can I assist you today?`);
+
+// Quick buttons
+const qw = document.getElementById('quickWrap');
+QUICK.forEach(q => {
+  const btn = document.createElement('button');
+  btn.className = 'qbtn';
+  btn.textContent = q;
+  btn.onclick = () => handleSend(q);
+  qw.appendChild(btn);
+});
+</script>
+</body>
+</html>
